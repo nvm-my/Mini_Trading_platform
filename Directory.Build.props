@@ -1,0 +1,19 @@
+<Project>
+  <!--
+    Directory.Build.props — applied to every project under this directory.
+    Enforces shared compiler settings and enables .NET recommended analyzers.
+    Warnings are set to suggestion level only so existing builds are not broken.
+  -->
+  <PropertyGroup>
+    <!-- Enable all .NET platform analyzers (included with the SDK) -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <!-- Use the latest analysis mode for maximum rule coverage -->
+    <AnalysisMode>Recommended</AnalysisMode>
+    <!-- Report diagnostics at suggestion severity — does NOT break the build -->
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+
+    <!-- Ensure XML documentation warnings are visible but not fatal -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn)</NoWarn>
+  </PropertyGroup>
+</Project>

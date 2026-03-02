@@ -1,0 +1,37 @@
+## .NET / C# build artifacts
+bin/
+obj/
+
+## NuGet packages
+*.nupkg
+*.snupkg
+.nuget/
+
+## Visual Studio files
+.vs/
+*.user
+*.suo
+*.sln.docstates
+
+## Rider / JetBrains
+.idea/
+*.DotSettings.user
+
+## VS Code
+.vscode/
+
+## Publish output
+publish/
+out/
+
+## OS files
+.DS_Store
+Thumbs.db
+
+## Secrets (never commit environment-specific appsettings)
+## Use dotnet user-secrets or environment variables for local configuration.
+appsettings.*.json
+!appsettings.json
+
+## dotnet-format
+.dotnet-format/
