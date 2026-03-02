@@ -1,10 +1,2 @@
-﻿namespace TradingPlatformAPI.Tests;
+// This file is intentionally empty; all tests live in dedicated *Tests.cs files.
 
-public class UnitTest1
-{
-    [Fact]
-    public void Test1()
-    {
-
-    }
-}
