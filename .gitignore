@@ -35,3 +35,13 @@ appsettings.*.json
 
 ## dotnet-format
 .dotnet-format/
+
+## Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/

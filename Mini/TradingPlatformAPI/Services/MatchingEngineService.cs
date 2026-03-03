@@ -8,15 +8,18 @@ namespace TradingPlatform.Services
         private readonly OrderRepository _orderRepo;
         private readonly TradeRepository _tradeRepo;
         private readonly BillingService _billingService;
+        private readonly FixMessageService _fixMessageService;
 
         public MatchingEngineService(
             OrderRepository orderRepo,
             TradeRepository tradeRepo,
-            BillingService billingService)
+            BillingService billingService,
+            FixMessageService fixMessageService)
         {
             _orderRepo = orderRepo;
             _tradeRepo = tradeRepo;
             _billingService = billingService;
+            _fixMessageService = fixMessageService;
         }
 
         public async Task MatchAsync(Order incomingOrder)
@@ -64,6 +67,11 @@ namespace TradingPlatform.Services
                 // Update quantities
                 incomingOrder.RemainingQuantity -= tradedQty;
                 order.RemainingQuantity -= tradedQty;
+
+                // Record FIX ExecutionReports for both sides of the trade
+                var buyOrder = incomingOrder.Side == "BUY" ? incomingOrder : order;
+                var sellOrder = incomingOrder.Side == "SELL" ? incomingOrder : order;
+                await _fixMessageService.RecordExecutionReportsAsync(buyOrder, sellOrder, trade);
 
                 await _billingService.ProcessTrade(trade);
 
