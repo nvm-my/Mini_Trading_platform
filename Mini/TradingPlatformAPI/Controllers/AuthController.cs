@@ -5,6 +5,9 @@ using TradingPlatform.Services;
 
 namespace TradingPlatform.Controllers
 {
+    /// <summary>
+    /// Handles user registration and authentication, returning JWT tokens on success.
+    /// </summary>
     [ApiController]
     [Route("api/auth")]
     public class AuthController : ControllerBase
@@ -16,6 +19,9 @@ namespace TradingPlatform.Controllers
             _authService = authService;
         }
 
+        /// <summary>
+        /// Registers a new user account and returns a JWT token.
+        /// </summary>
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDTO dto)
         {
@@ -28,14 +34,18 @@ namespace TradingPlatform.Controllers
             };
 
             var token = await _authService.Register(user);
-            return Ok(token);
+            return Ok(new { token });
         }
 
+        /// <summary>
+        /// Authenticates a user and returns a JWT token on success.
+        /// Returns <c>401 Unauthorized</c> when credentials are invalid.
+        /// </summary>
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDTO dto)
         {
             var token = await _authService.Login(dto.Email, dto.Password);
-            return Ok(token);
+            return Ok(new { token });
         }
     }
 }

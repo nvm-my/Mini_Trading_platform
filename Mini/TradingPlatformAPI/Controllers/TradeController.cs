@@ -1,26 +1,31 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TradingPlatform.Repositories;
+using TradingPlatform.Repositories.Interfaces;
 
 namespace TradingPlatform.Controllers
 {
+    /// <summary>
+    /// Provides access to executed trade records for the authenticated user.
+    /// </summary>
     [ApiController]
     [Route("api/trades")]
     [Authorize]
     public class TradeController : ControllerBase
     {
-        private readonly TradeRepository _tradeRepo;
+        private readonly ITradeRepository _tradeRepo;
 
-        public TradeController(TradeRepository tradeRepo)
+        public TradeController(ITradeRepository tradeRepo)
         {
             _tradeRepo = tradeRepo;
         }
 
-        // Get all trades for logged-in user
+        /// <summary>Returns all trades in which the authenticated user participated.</summary>
         [HttpGet("my")]
         public async Task<IActionResult> GetMyTrades()
         {
             var userId = User.FindFirst("nameid")?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             var trades = await _tradeRepo.GetTradesByUserAsync(userId);
             return Ok(trades);

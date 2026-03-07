@@ -1,9 +1,11 @@
 using MongoDB.Driver;
 using TradingPlatform.Models;
+using TradingPlatform.Repositories.Interfaces;
 
 namespace TradingPlatform.Repositories
 {
-    public class OrderRepository
+    /// <inheritdoc cref="IOrderRepository"/>
+    public class OrderRepository : IOrderRepository
     {
         private readonly IMongoCollection<Order> _orders;
 
@@ -17,7 +19,7 @@ namespace TradingPlatform.Repositories
             await _orders.InsertOneAsync(order);
         }
 
-        public async Task<Order> GetByIdAsync(string id)
+        public async Task<Order?> GetByIdAsync(string id)
         {
             return await _orders.Find(x => x.Id == id).FirstOrDefaultAsync();
         }

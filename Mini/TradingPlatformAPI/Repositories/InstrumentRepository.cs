@@ -1,9 +1,11 @@
 using MongoDB.Driver;
 using TradingPlatform.Models;
+using TradingPlatform.Repositories.Interfaces;
 
 namespace TradingPlatform.Repositories
 {
-    public class InstrumentRepository
+    /// <inheritdoc cref="IInstrumentRepository"/>
+    public class InstrumentRepository : IInstrumentRepository
     {
         private readonly IMongoCollection<Instrument> _collection;
 
@@ -17,7 +19,7 @@ namespace TradingPlatform.Repositories
             return await _collection.Find(_ => true).ToListAsync();
         }
 
-        public async Task<Instrument> GetByIdAsync(string id)
+        public async Task<Instrument?> GetByIdAsync(string id)
         {
             return await _collection.Find(x => x.Id == id).FirstOrDefaultAsync();
         }

@@ -1,9 +1,11 @@
 using MongoDB.Driver;
 using TradingPlatform.Models;
+using TradingPlatform.Repositories.Interfaces;
 
 namespace TradingPlatform.Repositories
 {
-    public class UserRepository
+    /// <inheritdoc cref="IUserRepository"/>
+    public class UserRepository : IUserRepository
     {
         private readonly IMongoCollection<User> _users;
 
@@ -17,12 +19,12 @@ namespace TradingPlatform.Repositories
             await _users.InsertOneAsync(user);
         }
 
-        public async Task<User> GetByEmailAsync(string email)
+        public async Task<User?> GetByEmailAsync(string email)
         {
             return await _users.Find(x => x.Email == email).FirstOrDefaultAsync();
         }
 
-        public async Task<User> GetByIdAsync(string id)
+        public async Task<User?> GetByIdAsync(string id)
         {
             return await _users.Find(x => x.Id == id).FirstOrDefaultAsync();
         }

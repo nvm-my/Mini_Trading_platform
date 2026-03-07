@@ -1,9 +1,11 @@
 using MongoDB.Driver;
 using TradingPlatform.Models;
+using TradingPlatform.Repositories.Interfaces;
 
 namespace TradingPlatform.Repositories
 {
-    public class TradeRepository
+    /// <inheritdoc cref="ITradeRepository"/>
+    public class TradeRepository : ITradeRepository
     {
         private readonly IMongoCollection<Trade> _collection;
 

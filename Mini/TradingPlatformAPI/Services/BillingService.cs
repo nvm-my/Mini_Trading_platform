@@ -1,28 +1,34 @@
 using TradingPlatform.Models;
-using TradingPlatform.Repositories;
+using TradingPlatform.Repositories.Interfaces;
 
 namespace TradingPlatform.Services
 {
+    /// <summary>
+    /// Settles executed trades by adjusting buyer and seller wallet balances.
+    /// </summary>
     public class BillingService
     {
-        private readonly UserRepository _userRepo;
+        private readonly IUserRepository _userRepo;
 
-        public BillingService(UserRepository userRepo)
+        public BillingService(IUserRepository userRepo)
         {
             _userRepo = userRepo;
         }
 
+        /// <summary>
+        /// Debits the buyer's wallet and credits the seller's wallet for the given trade.
+        /// </summary>
         public async Task ProcessTrade(Trade trade)
         {
             var buyer = await _userRepo.GetByIdAsync(trade.BuyOrderId);
             var seller = await _userRepo.GetByIdAsync(trade.SellOrderId);
 
+            if (buyer == null || seller == null || trade.Quantity == 0)
+                return;
+
             decimal total = trade.Price * trade.Quantity;
 
-            // Deduct buyer balance
             buyer.WalletBalance -= total;
-
-            // Add seller balance
             seller.WalletBalance += total;
 
             await _userRepo.UpdateAsync(buyer);
