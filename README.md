@@ -2,51 +2,70 @@
 
 > **Disclaimer:** This is an educational/demo project. It is not financial advice and should not be used in any real-money trading context.
 
-A lightweight REST API built with **ASP.NET Core (.NET 10)** that demonstrates the core concepts of a trading platform: user authentication, instrument management, order placement with a basic matching engine, and wallet/billing settlement.
+A full-stack trading platform demonstrating core software-engineering concepts: REST API, React web frontend, React Native mobile app, background processing, load testing, security testing, and containerised deployment.
 
 ---
 
 ## Table of Contents
 
 - [Project Overview](#project-overview)
-- [Key Features](#key-features)
+- [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
 - [Configuration](#configuration)
 - [Database](#database)
 - [Testing](#testing)
+- [Load Testing](#load-testing)
+- [Security Testing](#security-testing)
+- [Deployment](#deployment)
 - [Project Structure](#project-structure)
 - [Contributing](#contributing)
-- [License](#license)
 
 ---
 
 ## Project Overview
 
-Mini Trading Platform is a back-end API that simulates the essential mechanics of an electronic trading venue:
+Mini Trading Platform simulates the essential mechanics of an electronic trading venue:
 
 - Users register and log in using JWT-authenticated endpoints.
 - Admins manage tradeable instruments (stocks, etc.) and their prices.
 - Clients submit BUY or SELL orders (Market or Limit) against those instruments.
 - An in-process **matching engine** pairs compatible orders using price-time priority.
 - A **billing service** settles executed trades by adjusting wallet balances.
+- A **background service** runs periodic reconciliation of open orders.
+- A **React web app** provides a browser-based trading interface.
+- A **React Native mobile app** provides an on-the-go trading interface.
 
 All data is persisted in **MongoDB**.
 
 ---
 
-## Key Features
+## Architecture
 
-| Feature | Details |
-|---|---|
-| **Authentication** | Register / Login with BCrypt password hashing and JWT tokens |
-| **Role-Based Access** | `Admin` and `Client` roles enforced via `[Authorize(Roles = "...")]` |
-| **Instrument Management** | Admins create instruments and update current prices |
-| **Order Management** | Place BUY/SELL, Market/Limit orders; cancel open orders |
-| **Matching Engine** | Price-time priority matching; statuses: `OPEN`, `PARTIAL`, `FILLED`, `CANCELLED` |
-| **Trade History** | Retrieve all trades executed for the logged-in user |
-| **Wallet / Billing** | Automatic balance debit (buyer) and credit (seller) on trade settlement |
-| **Swagger UI** | Interactive API docs available in Development mode at `/swagger` |
+```
+┌──────────────────┐     ┌──────────────────┐
+│  React Frontend  │     │  React Native    │
+│  (Vite + TS)     │     │  Mobile (Expo)   │
+└────────┬─────────┘     └────────┬─────────┘
+         │                        │
+         └──────────┬─────────────┘
+                    │ HTTP / REST
+         ┌──────────▼─────────────┐
+         │  ASP.NET Core 10 API   │
+         │  JWT Auth · Rate Limit │
+         │  CORS · Health Checks  │
+         ├──────────┬─────────────┤
+         │ Matching │  Billing    │
+         │ Engine   │  Service    │
+         ├──────────┴─────────────┤
+         │  Background Service    │
+         │  (Reconciliation)      │
+         └──────────┬─────────────┘
+                    │
+         ┌──────────▼─────────────┐
+         │       MongoDB          │
+         └────────────────────────┘
+```
 
 ---
 
@@ -54,13 +73,22 @@ All data is persisted in **MongoDB**.
 
 | Layer | Technology |
 |---|---|
-| Language | C# 13 |
-| Framework | ASP.NET Core 10 (`net10.0`) |
+| Backend language | C# 13 |
+| Backend framework | ASP.NET Core 10 (`net10.0`) |
 | Database | MongoDB (via MongoDB.Driver 3.x) |
 | Authentication | JWT Bearer (`Microsoft.AspNetCore.Authentication.JwtBearer`) |
-| Password Hashing | BCrypt.Net-Next |
-| API Documentation | Swashbuckle / Swagger UI |
-| SDK Pin | .NET SDK 10.0.x (see `global.json`) |
+| Password hashing | BCrypt.Net-Next |
+| API documentation | Swashbuckle / Swagger UI |
+| Background jobs | `IHostedService` / `BackgroundService` |
+| Rate limiting | `Microsoft.AspNetCore.RateLimiting` |
+| Web frontend | React 18 + TypeScript + Vite 4 |
+| Mobile app | React Native via Expo |
+| Mobile navigation | React Navigation |
+| HTTP client | Axios |
+| Load testing | k6 |
+| Security scanning | OWASP ZAP + Trivy |
+| Containerisation | Docker + Docker Compose |
+| CI/CD | GitHub Actions |
 
 ---
 
@@ -68,68 +96,53 @@ All data is persisted in **MongoDB**.
 
 ### Prerequisites
 
-- [.NET SDK 10.0](https://dotnet.microsoft.com/download/dotnet/10.0) or later
-- A running [MongoDB](https://www.mongodb.com/try/download/community) instance (local or cloud, e.g. Atlas)
+- [.NET SDK 10.0](https://dotnet.microsoft.com/download/dotnet/10.0)
+- A running [MongoDB](https://www.mongodb.com/try/download/community) instance (or use `docker compose up mongodb`)
+- Node.js 20+ (for frontend and mobile)
 
-### Clone the repository
-
-```bash
-git clone https://github.com/nvm-my/Mini_Trading_platform.git
-cd Mini_Trading_platform
-```
-
-### Restore dependencies
+### Quick Start (Docker Compose)
 
 ```bash
-dotnet restore Mini/TradingPlatformAPI/TradingPlatformAPI.csproj
+# Copy and edit environment variables
+cp .env.example .env
+
+# Start all services (API + MongoDB + Frontend)
+docker compose up -d
 ```
 
-### Build
+| Service | URL |
+|---|---|
+| API | http://localhost:5085 |
+| Swagger UI | http://localhost:5085/swagger |
+| Health check | http://localhost:5085/health |
+| Web frontend | http://localhost:3000 |
+
+### Manual Setup
 
 ```bash
-dotnet build Mini/TradingPlatformAPI/TradingPlatformAPI.csproj
+# Backend
+cd Mini/TradingPlatformAPI
+dotnet user-secrets set "MongoDbSettings:ConnectionString" "mongodb://localhost:27017"
+dotnet user-secrets set "MongoDbSettings:DatabaseName" "TradingPlatformDb"
+dotnet user-secrets set "JwtSettings:SecretKey" "your-super-secret-key-min-32-chars"
+dotnet run
+
+# Frontend
+cd frontend
+cp .env.example .env
+npm install && npm run dev      # http://localhost:3000
+
+# Mobile
+cd mobile
+cp .env.example .env
+npm install && npx expo start
 ```
-
-### Run
-
-```bash
-dotnet run --project Mini/TradingPlatformAPI/TradingPlatformAPI.csproj
-```
-
-The API will start on `http://localhost:5085` (HTTP) or `https://localhost:7237` (HTTPS).
-
-Open `http://localhost:5085/swagger` in your browser to explore the API interactively (Development mode only).
 
 ---
 
 ## Configuration
 
-Configuration is handled through the standard ASP.NET Core `appsettings.json` / environment-variable layering.
-
-### `appsettings.json` (checked-in defaults)
-
-```json
-{
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
-  "AllowedHosts": "*"
-}
-```
-
-### Required secrets (do NOT commit to source control)
-
-Create a `appsettings.Development.json` (already git-ignored for non-default environments) or use [.NET User Secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets) for local development:
-
-```bash
-cd Mini/TradingPlatformAPI
-dotnet user-secrets set "MongoDbSettings:ConnectionString" "mongodb://localhost:27017"
-dotnet user-secrets set "MongoDbSettings:DatabaseName"    "TradingPlatformDb"
-dotnet user-secrets set "JwtSettings:SecretKey"           "your-super-secret-key-min-32-chars"
-```
+### Required secrets
 
 | Key | Description |
 |---|---|
@@ -137,49 +150,98 @@ dotnet user-secrets set "JwtSettings:SecretKey"           "your-super-secret-key
 | `MongoDbSettings:DatabaseName` | Target database name |
 | `JwtSettings:SecretKey` | HMAC-SHA256 signing key (min 32 characters) |
 
-For production deployments, supply these as environment variables or through a secrets manager (Azure Key Vault, AWS Secrets Manager, etc.).
+### CORS
+
+Add allowed origins in `appsettings.json` or via environment variables:
+
+```json
+{
+  "Cors": {
+    "AllowedOrigins": ["http://localhost:3000", "https://your-production-domain.com"]
+  }
+}
+```
 
 ---
 
 ## Database
 
-The platform uses **MongoDB** — a schema-less document database. No migration scripts are needed; collections are created automatically when the application first writes a document.
-
-### Collections
+MongoDB collections:
 
 | Collection | Model | Description |
 |---|---|---|
-| `users` | `User` | Registered users and their wallet balances |
-| `instruments` | `Instrument` | Tradeable assets with current prices |
-| `orders` | `Order` | All submitted orders |
-| `trades` | `Trade` | Executed trade records |
-
-### Seed data
-
-There is no automated seed script. Use the Swagger UI or a tool such as [MongoDB Compass](https://www.mongodb.com/products/compass) or `mongosh` to insert initial instruments:
-
-```js
-db.instruments.insertOne({
-  name: "ACME Corp",
-  symbol: "ACME",
-  currentPrice: 100.00,
-  isActive: true
-})
-```
+| `Users` | `User` | Registered users and wallet balances |
+| `Instruments` | `Instrument` | Tradeable assets with current prices |
+| `Orders` | `Order` | All submitted orders |
+| `Trades` | `Trade` | Executed trade records |
+| `FixMessages` | `FixMessage` | FIX 4.2 ExecutionReport messages |
 
 ---
 
 ## Testing
 
-There are no automated tests in the repository at this time.  
-To add tests, create an xUnit (or NUnit) project under `Mini/TradingPlatformAPI.Tests/` and reference the main project.
+### Unit tests (xUnit)
 
 ```bash
-dotnet new xunit -n TradingPlatformAPI.Tests -o Mini/TradingPlatformAPI.Tests
-dotnet add Mini/TradingPlatformAPI.Tests/TradingPlatformAPI.Tests.csproj reference \
-    Mini/TradingPlatformAPI/TradingPlatformAPI.csproj
 dotnet test Mini/TradingPlatformAPI.Tests/TradingPlatformAPI.Tests.csproj
 ```
+
+31 unit tests covering:
+- Authentication (JWT, BCrypt)
+- Order placement and cancellation
+- Matching engine (full-fill, partial-fill, price validation)
+- Billing (wallet debit/credit)
+- FIX 4.2 message formatting
+
+---
+
+## Load Testing
+
+Uses [k6](https://k6.io/). See [`load-tests/README.md`](load-tests/README.md) for full instructions.
+
+```bash
+# Quick smoke test
+k6 run load-tests/smoke.test.js
+
+# Full order-placement load test (50 VUs)
+k6 run load-tests/orders.test.js
+```
+
+---
+
+## Security Testing
+
+Uses [OWASP ZAP](https://www.zaproxy.org/) and [Trivy](https://trivy.dev/).  
+See [`security-tests/README.md`](security-tests/README.md) for full instructions.
+
+```bash
+# Passive scan via Docker
+docker run --rm \
+  -v $(pwd)/security-tests/reports:/zap/wrk \
+  ghcr.io/zaproxy/zaproxy:stable \
+  zap-baseline.py -t http://host.docker.internal:5085/swagger/v1/swagger.json \
+  -r zap-baseline-report.html
+
+# Container image scan
+trivy image mini-trading-platform:latest
+```
+
+---
+
+## Deployment
+
+### Docker Compose (local / staging)
+
+```bash
+docker compose up --build -d
+```
+
+### Container images (GitHub Actions CD)
+
+On every push to `main` or a version tag (`v*.*.*`), GitHub Actions builds and pushes images to GitHub Container Registry:
+
+- `ghcr.io/<owner>/mini-trading-api`
+- `ghcr.io/<owner>/mini-trading-frontend`
 
 ---
 
@@ -187,47 +249,47 @@ dotnet test Mini/TradingPlatformAPI.Tests/TradingPlatformAPI.Tests.csproj
 
 ```
 Mini_Trading_platform/
-├── .editorconfig                  # Code style / formatting rules
+├── .github/
+│   └── workflows/
+│       ├── ci.yml              # Build, test, security scan
+│       └── cd.yml              # Docker build & push
+├── Mini/
+│   ├── TradingPlatformAPI/     # ASP.NET Core Web API
+│   │   ├── BackgroundServices/ # IHostedService implementations
+│   │   ├── Config/             # Settings POCOs
+│   │   ├── Controllers/        # HTTP endpoints
+│   │   ├── DTOs/               # Request/response models (with validation)
+│   │   ├── Middleware/         # Global exception handler
+│   │   ├── Models/             # MongoDB document models
+│   │   ├── Repositories/       # Data access layer
+│   │   │   └── Interfaces/     # Repository abstractions (SOLID)
+│   │   ├── Services/           # Business logic
+│   │   └── Program.cs          # DI, middleware, CORS, rate limiting
+│   └── TradingPlatformAPI.Tests/   # xUnit unit tests
+├── frontend/                   # React + TypeScript web app
+│   ├── src/
+│   │   ├── api/                # Axios service modules
+│   │   ├── components/         # Reusable components
+│   │   ├── context/            # React context (AuthContext)
+│   │   └── pages/              # Route-level components
+│   └── Dockerfile
+├── mobile/                     # React Native Expo app
+│   ├── src/
+│   │   ├── api/                # Axios service modules
+│   │   ├── context/            # AuthContext with AsyncStorage
+│   │   ├── navigation/         # React Navigation setup
+│   │   └── screens/            # Screen components
+│   └── App.tsx
+├── load-tests/                 # k6 load testing scripts
+├── security-tests/             # OWASP ZAP + Trivy configs
+├── scripts/                    # Python data-scraping utilities
+├── docker-compose.yml
+├── .editorconfig
 ├── .gitignore
 ├── CONTRIBUTING.md
-├── Directory.Build.props          # Shared MSBuild properties & analyzers
-├── global.json                    # Pinned .NET SDK version
-├── README.md
-└── Mini/
-    └── TradingPlatformAPI/        # ASP.NET Core Web API project
-        ├── Config/
-        │   ├── JwtSettings.cs     # JWT configuration POCO
-        │   └── MongoDbSettings.cs # MongoDB configuration POCO
-        ├── Controllers/
-        │   ├── AuthController.cs        # POST /api/auth/register, /login
-        │   ├── InstrumentController.cs  # GET/POST /api/instruments
-        │   ├── OrderController.cs       # POST/DELETE /api/orders
-        │   ├── TradeController.cs       # GET /api/trades/my
-        │   └── UserController.cs        # User profile endpoints
-        ├── DTOs/
-        │   ├── LoginDTO.cs
-        │   ├── OrderDTO.cs
-        │   └── RegisterDTO.cs
-        ├── Models/
-        │   ├── Instrument.cs
-        │   ├── Order.cs
-        │   ├── Trade.cs
-        │   ├── User.cs
-        │   └── Wallet.cs
-        ├── Repositories/
-        │   ├── InstrumentRepository.cs
-        │   ├── OrderRepository.cs
-        │   ├── TradeRepository.cs
-        │   └── UserRepository.cs
-        ├── Services/
-        │   ├── AuthService.cs           # Registration & login with JWT generation
-        │   ├── BillingService.cs        # Wallet debit/credit on trade settlement
-        │   ├── MatchingEngineService.cs # Price-time priority order matching
-        │   ├── OrderService.cs          # Place & cancel orders
-        │   └── WalletService.cs        # (reserved for future wallet operations)
-        ├── Program.cs
-        ├── appsettings.json
-        └── TradingPlatformAPI.csproj
+├── Directory.Build.props
+├── global.json
+└── README.md
 ```
 
 ---
@@ -235,13 +297,6 @@ Mini_Trading_platform/
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
-
-Short summary:
-1. Fork the repository and create a feature branch from `main`.
-2. Follow the code style enforced by `.editorconfig` and run `dotnet format` before submitting.
-3. Keep pull requests focused — one concern per PR.
-4. Add or update tests when changing business logic.
-5. Open a pull request and fill in the PR template checklist.
 
 ---
 
@@ -251,4 +306,4 @@ No license specified. All rights reserved by the repository owner.
 
 ---
 
-> **Financial Disclaimer:** This project is provided solely for educational and demonstration purposes. It does not constitute financial advice, investment advice, or a recommendation to buy or sell any financial instrument. Use at your own risk.
+> **Financial Disclaimer:** This project is provided solely for educational and demonstration purposes. It does not constitute financial advice. Use at your own risk.

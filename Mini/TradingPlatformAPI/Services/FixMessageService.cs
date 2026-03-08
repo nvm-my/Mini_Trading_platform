@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 using TradingPlatform.Models;
-using TradingPlatform.Repositories;
+using TradingPlatform.Repositories.Interfaces;
 
 namespace TradingPlatform.Services
 {
@@ -11,9 +11,9 @@ namespace TradingPlatform.Services
     /// </summary>
     public class FixMessageService
     {
-        private readonly FixMessageRepository _fixMessageRepo;
+        private readonly IFixMessageRepository _fixMessageRepo;
 
-        public FixMessageService(FixMessageRepository fixMessageRepo)
+        public FixMessageService(IFixMessageRepository fixMessageRepo)
         {
             _fixMessageRepo = fixMessageRepo;
         }

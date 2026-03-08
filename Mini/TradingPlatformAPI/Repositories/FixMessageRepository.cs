@@ -1,9 +1,11 @@
 using MongoDB.Driver;
 using TradingPlatform.Models;
+using TradingPlatform.Repositories.Interfaces;
 
 namespace TradingPlatform.Repositories
 {
-    public class FixMessageRepository
+    /// <inheritdoc cref="IFixMessageRepository"/>
+    public class FixMessageRepository : IFixMessageRepository
     {
         private readonly IMongoCollection<FixMessage> _collection;
 

@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feature/**", "fix/**", "copilot/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Backend build & test ───────────────────────────────────────────────────
+  backend:
+    name: Backend – Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore dependencies
+        run: dotnet restore Mini/TradingPlatformAPI/TradingPlatformAPI.csproj
+
+      - name: Build
+        run: dotnet build Mini/TradingPlatformAPI/TradingPlatformAPI.csproj -c Release --no-restore
+
+      - name: Run tests
+        run: >
+          dotnet test Mini/TradingPlatformAPI.Tests/TradingPlatformAPI.Tests.csproj
+          --no-build
+          --collect:"XPlat Code Coverage"
+          --results-directory ./coverage
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+
+  # ── Frontend build ─────────────────────────────────────────────────────────
+  frontend:
+    name: Frontend – Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check & build
+        run: npm run build
+
+  # ── Security scan ──────────────────────────────────────────────────────────
+  security:
+    name: Security – Dependency Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner (NuGet)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: Mini/TradingPlatformAPI/TradingPlatformAPI.csproj
+          format: table
+          exit-code: 0   # informational only; set to 1 to block on CRITICAL
+
+      - name: Run Trivy vulnerability scanner (npm)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: frontend/package.json
+          format: table
+          exit-code: 0

@@ -1,18 +1,24 @@
 using TradingPlatform.Models;
-using TradingPlatform.Repositories;
+using TradingPlatform.Repositories.Interfaces;
 
 namespace TradingPlatform.Services
 {
+    /// <summary>
+    /// Implements a price-time priority order matching engine.
+    /// For each incoming order it attempts to match against resting opposite-side orders,
+    /// creating <see cref="Trade"/> records, generating FIX ExecutionReports, and
+    /// triggering billing settlement for every matched quantity.
+    /// </summary>
     public class MatchingEngineService
     {
-        private readonly OrderRepository _orderRepo;
-        private readonly TradeRepository _tradeRepo;
+        private readonly IOrderRepository _orderRepo;
+        private readonly ITradeRepository _tradeRepo;
         private readonly BillingService _billingService;
         private readonly FixMessageService _fixMessageService;
 
         public MatchingEngineService(
-            OrderRepository orderRepo,
-            TradeRepository tradeRepo,
+            IOrderRepository orderRepo,
+            ITradeRepository tradeRepo,
             BillingService billingService,
             FixMessageService fixMessageService)
         {
@@ -22,9 +28,12 @@ namespace TradingPlatform.Services
             _fixMessageService = fixMessageService;
         }
 
+        /// <summary>
+        /// Attempts to match <paramref name="incomingOrder"/> against resting orders on the
+        /// opposite side, executing trades and updating order statuses accordingly.
+        /// </summary>
         public async Task MatchAsync(Order incomingOrder)
         {
-            // Fetch opposite orders
             var oppositeSide = incomingOrder.Side == "BUY" ? "SELL" : "BUY";
 
             var oppositeOrders = await _orderRepo
@@ -36,55 +45,50 @@ namespace TradingPlatform.Services
             else
                 oppositeOrders = oppositeOrders.OrderByDescending(o => o.Price).ToList();
 
-            foreach (var order in oppositeOrders)
+            foreach (var restingOrder in oppositeOrders)
             {
                 if (incomingOrder.RemainingQuantity <= 0)
                     break;
 
-                // Price check
+                // Price check for LIMIT orders
                 if (incomingOrder.OrderType == "LIMIT")
                 {
-                    if (incomingOrder.Side == "BUY" && incomingOrder.Price < order.Price)
+                    if (incomingOrder.Side == "BUY" && incomingOrder.Price < restingOrder.Price)
                         continue;
 
-                    if (incomingOrder.Side == "SELL" && incomingOrder.Price > order.Price)
+                    if (incomingOrder.Side == "SELL" && incomingOrder.Price > restingOrder.Price)
                         continue;
                 }
 
-                int tradedQty = Math.Min(incomingOrder.RemainingQuantity, order.RemainingQuantity);
+                int tradedQty = Math.Min(incomingOrder.RemainingQuantity, restingOrder.RemainingQuantity);
 
                 var trade = new Trade
                 {
-                    BuyOrderId = incomingOrder.Side == "BUY" ? incomingOrder.Id : order.Id,
-                    SellOrderId = incomingOrder.Side == "SELL" ? incomingOrder.Id : order.Id,
+                    BuyOrderId = incomingOrder.Side == "BUY" ? incomingOrder.Id : restingOrder.Id,
+                    SellOrderId = incomingOrder.Side == "SELL" ? incomingOrder.Id : restingOrder.Id,
                     InstrumentId = incomingOrder.InstrumentId,
-                    Price = order.Price ?? 0,
+                    Price = restingOrder.Price ?? 0,
                     Quantity = tradedQty
                 };
 
                 await _tradeRepo.CreateAsync(trade);
 
-                // Update quantities
                 incomingOrder.RemainingQuantity -= tradedQty;
-                order.RemainingQuantity -= tradedQty;
+                restingOrder.RemainingQuantity -= tradedQty;
 
-                // Record FIX ExecutionReports for both sides of the trade
-                var buyOrder = incomingOrder.Side == "BUY" ? incomingOrder : order;
-                var sellOrder = incomingOrder.Side == "SELL" ? incomingOrder : order;
+                var buyOrder = incomingOrder.Side == "BUY" ? incomingOrder : restingOrder;
+                var sellOrder = incomingOrder.Side == "SELL" ? incomingOrder : restingOrder;
                 await _fixMessageService.RecordExecutionReportsAsync(buyOrder, sellOrder, trade);
 
                 await _billingService.ProcessTrade(trade);
 
-                if (order.RemainingQuantity == 0)
-                    order.Status = "FILLED";
+                if (restingOrder.RemainingQuantity == 0)
+                    restingOrder.Status = "FILLED";
 
-                await _orderRepo.UpdateAsync(order);
+                await _orderRepo.UpdateAsync(restingOrder);
             }
 
-            if (incomingOrder.RemainingQuantity == 0)
-                incomingOrder.Status = "FILLED";
-            else
-                incomingOrder.Status = "PARTIAL";
+            incomingOrder.Status = incomingOrder.RemainingQuantity == 0 ? "FILLED" : "PARTIAL";
 
             await _orderRepo.UpdateAsync(incomingOrder);
         }

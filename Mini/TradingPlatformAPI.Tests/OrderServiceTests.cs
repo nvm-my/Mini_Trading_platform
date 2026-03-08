@@ -174,6 +174,6 @@ public class OrderServiceTests
         // GetByIdAsync returns null (empty list → FirstOrDefault → null)
         MongoTestHelper.SetupFind(mockOrders, Array.Empty<Order>());
 
-        await Assert.ThrowsAsync<Exception>(() => svc.CancelOrder("non-existent-id"));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => svc.CancelOrder("non-existent-id"));
     }
 }

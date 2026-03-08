@@ -5,6 +5,9 @@ using TradingPlatform.Services;
 
 namespace TradingPlatform.Controllers
 {
+    /// <summary>
+    /// Manages order placement and cancellation. All endpoints require authentication.
+    /// </summary>
     [ApiController]
     [Route("api/orders")]
     [Authorize]
@@ -17,23 +20,30 @@ namespace TradingPlatform.Controllers
             _orderService = orderService;
         }
 
-        // Place new order
+        /// <summary>
+        /// Places a new order for the authenticated user and immediately triggers matching.
+        /// </summary>
         [HttpPost]
         public async Task<IActionResult> PlaceOrder(OrderDTO dto)
         {
             var userId = User.FindFirst("nameid")?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             var result = await _orderService.PlaceOrder(userId, dto);
-
             return Ok(result);
         }
 
-        // Cancel order
+        /// <summary>
+        /// Cancels an existing open order.
+        /// Returns <c>404 Not Found</c> when the order does not exist.
+        /// </summary>
+        /// <param name="id">Order identifier.</param>
         [HttpDelete("{id}")]
         public async Task<IActionResult> CancelOrder(string id)
         {
             await _orderService.CancelOrder(id);
-            return Ok("Order cancelled");
+            return Ok(new { message = "Order cancelled." });
         }
     }
 }

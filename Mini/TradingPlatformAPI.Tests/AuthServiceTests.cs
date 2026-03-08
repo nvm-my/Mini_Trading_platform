@@ -147,7 +147,7 @@ public class AuthServiceTests
 
         MongoTestHelper.SetupFind(mockUsers, new[] { storedUser });
 
-        await Assert.ThrowsAsync<Exception>(
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => svc.Login(storedUser.Email, "wrong-password"));
     }
 
@@ -159,7 +159,7 @@ public class AuthServiceTests
         // Find returns no user (empty list)
         MongoTestHelper.SetupFind(mockUsers, Array.Empty<User>());
 
-        await Assert.ThrowsAsync<Exception>(
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => svc.Login("nobody@example.com", "any-password"));
     }
 }

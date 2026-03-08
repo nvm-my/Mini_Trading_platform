@@ -1,0 +1,64 @@
+# Docker Compose configuration for local development of Mini Trading Platform.
+# Services: API, MongoDB, and the React web frontend.
+#
+# Usage:
+#   docker compose up -d              # start all services
+#   docker compose up --build api     # rebuild and restart only the API
+#   docker compose down -v            # stop and remove volumes
+
+version: "3.9"
+
+services:
+  # ── MongoDB ───────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: trading-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: TradingPlatformDb
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend API ────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Mini/TradingPlatformAPI/Dockerfile
+    container_name: trading-api
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    ports:
+      - "5085:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      MongoDbSettings__ConnectionString: mongodb://mongodb:27017
+      MongoDbSettings__DatabaseName: TradingPlatformDb
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY:-change-this-secret-key-in-production-32chars}
+      Cors__AllowedOrigins__0: http://localhost:3000
+
+  # ── React Web Frontend ─────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:5085
+    container_name: trading-frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+
+volumes:
+  mongo_data:
+    driver: local

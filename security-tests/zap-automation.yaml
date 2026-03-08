@@ -1,0 +1,57 @@
+---
+# OWASP ZAP Automation Framework plan for Mini Trading Platform
+# Docs: https://www.zaproxy.org/docs/automate/automation-framework/
+
+env:
+  contexts:
+    - name: "Mini Trading Platform"
+      urls:
+        - "http://host.docker.internal:5085"
+      includePaths:
+        - "http://host.docker.internal:5085/api/.*"
+      excludePaths:
+        - "http://host.docker.internal:5085/swagger/.*"
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+
+jobs:
+  - type: passiveScan-config
+    name: "Configure passive scanner"
+    parameters:
+      maxAlertsPerRule: 10
+      scanOnlyInScope: true
+
+  - type: spider
+    name: "Spider the API"
+    parameters:
+      context: "Mini Trading Platform"
+      maxDuration: 2   # minutes
+      maxDepth: 5
+
+  - type: openapi
+    name: "Import OpenAPI spec"
+    parameters:
+      apiUrl: "http://host.docker.internal:5085/swagger/v1/swagger.json"
+      context: "Mini Trading Platform"
+
+  - type: passiveScan-wait
+    name: "Wait for passive scanner"
+    parameters:
+      maxDuration: 5   # minutes
+
+  - type: report
+    name: "Generate HTML report"
+    parameters:
+      template: "traditional-html"
+      reportDir: "/zap/wrk/reports"
+      reportFile: "zap-report.html"
+      reportTitle: "Mini Trading Platform – ZAP Scan Report"
+
+  - type: report
+    name: "Generate JSON report"
+    parameters:
+      template: "traditional-json"
+      reportDir: "/zap/wrk/reports"
+      reportFile: "zap-report.json"

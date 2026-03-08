@@ -45,3 +45,19 @@ venv/
 env/
 *.egg-info/
 dist/
+
+# Frontend build artifacts
+frontend/dist/
+frontend/node_modules/
+
+# Mobile build artifacts
+mobile/node_modules/
+mobile/.expo/
+mobile/android/
+mobile/ios/
+
+# Security test reports (generated at runtime)
+security-tests/reports/
+
+# Load test results
+load-tests/results/
